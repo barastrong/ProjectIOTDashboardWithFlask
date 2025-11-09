@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Sistem Jemuran Otomatis</title>
+    <style>
+        body { font-family: "Poppins", sans-serif; background-color: #f5f6fa; color: #2f3640; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 20px; margin-bottom: 20px; }
+        h1 { color: #273c75; margin: 0; }
+        .user-info a { background-color: #d63031; color: white; padding: 10px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; transition: background-color 0.3s; }
+        .user-info a:hover { background-color: #b71540; }
+        .controls { text-align: center; margin-bottom: 30px; }
+        .btn-toggle { padding: 12px 25px; font-size: 1.1rem; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; }
+        .btn-toggle.on { background-color: #44bd32; }
+        .btn-toggle.off { background-color: #c23616; }
+        #systemStatusText { font-size: 1.2rem; font-weight: bold; margin-top: 10px; }
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+        thead { background-color: #273c75; color: white; }
+        tbody tr:nth-child(even) { background-color: #f2f2f2; }
+        .flash-message { padding: 15px; margin-bottom: 20px; border-radius: 8px; color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="header">
+            <h1>Dashboard Sistem Jemuran</h1>
+            <div class="user-info">
+                <span>Halo, <strong>{{ username }}</strong>!</span>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            </div>
+        </div>
+        <div class="controls">
+            <h2>Kontrol Sistem</h2>
+            <button id="toggleSystemBtn" class="btn-toggle"></button>
+            <p id="systemStatusText"></p>
+        </div>
+        <div class="table-container">
+            <h2>Riwayat Data Sensor</h2>
+            <table id="data-table">
+                <thead>
+                    <tr>
+                        <th>Waktu</th>
+                        <th>Nilai Hujan (int)</th>
+                        <th>Nilai LDR (int)</th>
+                        <th>Status Jemuran</th>
+                        <th>Status Sistem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in table_rows %}
+                    <tr>
+                        <td>{{ row.waktu }}</td>
+                        <td>{{ row.rain_value }}</td>
+                        <td>{{ row.ldr_value }}</td>
+                        <td>{{ row.status }}</td>
+                        <td>{{ row.status_system }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const toggleBtn = document.getElementById('toggleSystemBtn');
+        const statusText = document.getElementById('systemStatusText');
+
+        function updateButton(status) {
+            if (status === 'ON') {
+                toggleBtn.textContent = 'Matikan Sistem';
+                toggleBtn.className = 'btn-toggle on';
+                statusText.textContent = 'Sistem Saat Ini: ON';
+                statusText.style.color = '#44bd32';
+            } else {
+                toggleBtn.textContent = 'Nyalakan Sistem';
+                toggleBtn.className = 'btn-toggle off';
+                statusText.textContent = 'Sistem Saat Ini: OFF';
+                statusText.style.color = '#c23616';
+            }
+        }
+
+        async function fetchSystemStatus() {
+            try {
+                const response = await fetch("{{ url_for('get_system_status') }}");
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                updateButton(data.status);
+            } catch (error) {
+                console.error('Error fetching system status:', error);
+                statusText.textContent = 'Gagal memuat status sistem.';
+                statusText.style.color = '#c23616';
+            }
+        }
+        
+        async function toggleSystem() {
+            const currentStatus = statusText.textContent.includes('ON') ? 'OFF' : 'ON';
+            try {
+                const response = await fetch("{{ url_for('toggle_system') }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status_system: currentStatus })
+                });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                console.log(data.message);
+                fetchSystemStatus(); 
+            } catch (error) {
+                console.error('Error toggling system:', error);
+                alert('Gagal mengubah status sistem. Periksa koneksi Anda.');
+            }
+        }
+        
+        async function refreshTable() {
+            try {
+                const response = await fetch("{{ url_for('get_data') }}");
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+                
+                const tbody = document.querySelector("#data-table tbody");
+                tbody.innerHTML = '';
+                data.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${row.waktu}</td>
+                        <td>${row.rain_value}</td>
+                        <td>${row.ldr_value}</td>
+                        <td>${row.status}</td>
+                        <td>${row.status_system}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Error refreshing table data:', error);
+            }
+        }
+        
+        toggleBtn.addEventListener('click', toggleSystem);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchSystemStatus();
+            setInterval(refreshTable, 5000); 
+        });
+    </script>
+</body>
+</html>
