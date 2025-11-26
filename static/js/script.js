@@ -1,26 +1,28 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const toggleSystemBtn = document.getElementById('toggle-system-btn');
-    const systemStatusSpan = document.getElementById('system-status');
     const sensorDataTableBody = document.querySelector('#sensor-data-table tbody');
     const chartDataTypeSelect = document.getElementById('chartDataType');
     const hamburger = document.querySelector('.hamburger');
     const sidebar = document.querySelector('.sidebar');
+    const connectionDot = document.getElementById('connection-dot');
+    const connectionText = document.getElementById('connection-text');
+    const sidebarStatusText = document.getElementById('sidebar-status-text');
+    const statusMessage = document.getElementById('status-message');
+
+    const btnAuto = document.getElementById('btn-auto');
+    const btnManual = document.getElementById('btn-manual');
+    const btnOff = document.getElementById('btn-off');
+    
+    const manualControls = document.getElementById('manual-controls');
+    const btnOpen = document.getElementById('btn-open');
+    const btnClose = document.getElementById('btn-close');
 
     let lineChartInstance;
-    let globalHistoryData = [];
 
-    // Toggle Sidebar untuk Mobile
     if (hamburger && sidebar) {
-        hamburger.addEventListener('click', function() {
-            sidebar.classList.toggle('active');
-        });
-
-        // Close sidebar saat klik di luar sidebar pada mobile
-        document.addEventListener('click', function(event) {
-            if (window.innerWidth <= 1024) {
-                if (!sidebar.contains(event.target) && !hamburger.contains(event.target)) {
-                    sidebar.classList.remove('active');
-                }
+        hamburger.addEventListener('click', () => sidebar.classList.toggle('active'));
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 1024 && !sidebar.contains(e.target) && !hamburger.contains(e.target)) {
+                sidebar.classList.remove('active');
             }
         });
     }
@@ -28,223 +30,128 @@ document.addEventListener('DOMContentLoaded', function() {
     function createOrUpdateLineChart(data, dataType) {
         const ctx = document.getElementById('lineChart').getContext('2d');
         const labels = data.map(row => new Date(row.waktu).toLocaleTimeString()).reverse();
-        let chartData, labelText, borderColor, backgroundColor;
-
-        if (dataType === 'temperature') {
-            chartData = data.map(row => row.temperature).reverse();
-            labelText = 'Suhu (°C)';
-            borderColor = 'rgb(239, 68, 68)';
-            backgroundColor = 'rgba(239, 68, 68, 0.1)';
-        } else if (dataType === 'humidity') {
-            chartData = data.map(row => row.humidity).reverse();
-            labelText = 'Kelembaban (%)';
-            borderColor = 'rgb(59, 130, 246)';
-            backgroundColor = 'rgba(59, 130, 246, 0.1)';
-        }
-
-        if (lineChartInstance) {
-            lineChartInstance.destroy();
-        }
-
+        const chartData = data.map(row => row[dataType]).reverse();
+        const color = dataType === 'temperature' ? 'rgb(239, 68, 68)' : 'rgb(59, 130, 246)';
+        
+        if (lineChartInstance) lineChartInstance.destroy();
         lineChartInstance = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: labels,
-                datasets: [
-                    {
-                        label: labelText,
-                        data: chartData,
-                        borderColor: borderColor,
-                        backgroundColor: backgroundColor,
-                        tension: 0.4,
-                        fill: true,
-                        borderWidth: 3,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
-                        pointBackgroundColor: borderColor,
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2
-                    }
-                ]
+                datasets: [{ 
+                    label: dataType === 'temperature' ? 'Suhu (°C)' : 'Kelembaban (%)', 
+                    data: chartData, 
+                    borderColor: color, 
+                    backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
+                    fill: true,
+                    tension: 0.4
+                }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top',
-                        labels: {
-                            font: {
-                                size: 13,
-                                weight: '600'
-                            },
-                            padding: 15
-                        }
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        padding: 12,
-                        titleFont: {
-                            size: 14,
-                            weight: 'bold'
-                        },
-                        bodyFont: {
-                            size: 13
-                        },
-                        borderColor: borderColor,
-                        borderWidth: 2
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: false,
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.05)'
-                        },
-                        ticks: {
-                            font: {
-                                size: 12
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: labelText,
-                            font: {
-                                size: 13,
-                                weight: '600'
-                            }
-                        }
-                    },
-                    x: {
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.05)'
-                        },
-                        ticks: {
-                            font: {
-                                size: 11
-                            },
-                            maxRotation: 45,
-                            minRotation: 45
-                        }
-                    }
-                }
-            }
+            options: { responsive: true, maintainAspectRatio: false }
         });
     }
 
     function updateData() {
         fetch('/data')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
+            .then(res => res.json())
             .then(data => {
-                console.log('Frontend received Flask system status:', data.flask_system_status);
+                connectionDot.style.backgroundColor = '#10b981';
+                connectionText.textContent = 'Online';
 
                 if (data.latest) {
                     document.getElementById('current-waktu').textContent = data.latest.waktu;
                     document.getElementById('current-temperature').textContent = data.latest.temperature;
                     document.getElementById('current-humidity').textContent = data.latest.humidity;
-                    // Logika tampilan sensor hujan yang diperbaiki: nilai rendah = hujan
-                    document.getElementById('current-rain').textContent =
-                        data.latest.rain_value >= 500 
-                        ? data.latest.rain_value + " (Hujan)" 
-                        : data.latest.rain_value + " (Tidak Hujan)";
+                    document.getElementById('current-rain').textContent = data.latest.rain_value;
                     document.getElementById('current-ldr').textContent = data.latest.ldr_value;
                     document.getElementById('current-jemuran-status').textContent = data.latest.status_jemuran;
-                } else {
-                    document.getElementById('current-waktu').textContent = 'N/A';
-                    document.getElementById('current-temperature').textContent = 'N/A';
-                    document.getElementById('current-humidity').textContent = 'N/A';
-                    document.getElementById('current-rain').textContent = 'N/A';
-                    document.getElementById('current-ldr').textContent = 'N/A';
-                    document.getElementById('current-jemuran-status').textContent = 'N/A';
                 }
 
-                const newSystemStatus = data.flask_system_status;
-                systemStatusSpan.textContent = newSystemStatus;
-                systemStatusSpan.classList.toggle('on', newSystemStatus === 'ON');
-                systemStatusSpan.classList.toggle('off', newSystemStatus === 'OFF');
+                // LOGIKA TAMPILAN TOMBOL
+                const sysStatus = data.flask_system_status;
+                const currentMode = data.control_mode;
 
-                toggleSystemBtn.textContent = (newSystemStatus === 'ON' ? 'MATIKAN SISTEM' : 'NYALAKAN SISTEM');
-                toggleSystemBtn.classList.toggle('btn-off', newSystemStatus === 'ON');
-                toggleSystemBtn.classList.toggle('btn-on', newSystemStatus === 'OFF');
+                // Reset Class
+                btnAuto.classList.remove('active');
+                btnManual.classList.remove('active');
+                btnOff.classList.remove('active');
+                
+                // Styling tombol OFF biasa
+                btnOff.style.backgroundColor = 'transparent';
+                btnOff.style.color = '#ef4444';
+
+                if (sysStatus === 'OFF' && currentMode === 'AUTO') {
+                     // KASUS: DIMATIKAN
+                     console.log("State: SYSTEM OFF");
+                     btnOff.classList.add('active');
+                     btnOff.style.backgroundColor = '#ef4444'; 
+                     btnOff.style.color = 'white';
+                     manualControls.style.display = 'none';
+                     sidebarStatusText.textContent = "SISTEM MATI";
+                     statusMessage.textContent = "Sistem dinonaktifkan. Sensor dan motor mati.";
+                } 
+                else if (currentMode === 'MANUAL') {
+                    // KASUS: MANUAL
+                    console.log("State: MANUAL");
+                    btnManual.classList.add('active');
+                    manualControls.style.display = 'flex';
+                    sidebarStatusText.textContent = "MODE MANUAL";
+                    statusMessage.textContent = "Kontrol manual aktif. Gunakan tombol di bawah.";
+                } 
+                else {
+                    // KASUS: AUTO
+                    console.log("State: AUTO");
+                    btnAuto.classList.add('active');
+                    manualControls.style.display = 'none';
+                    sidebarStatusText.textContent = "MODE AUTO";
+                    statusMessage.textContent = "Sistem berjalan otomatis menggunakan sensor.";
+                }
 
                 if (data.history) {
                     sensorDataTableBody.innerHTML = '';
-                    const filteredHistory = data.history.filter(row => row.status_system === 'ON');
-                    globalHistoryData = filteredHistory;
-
-                    filteredHistory.forEach(row => {
+                    data.history.forEach(row => {
                         const tr = document.createElement('tr');
-                        tr.innerHTML = `
-                            <td>${row.id}</td>
-                            <td>${row.waktu}</td>
-                            <td>${row.temperature}</td>
-                            <td>${row.humidity}</td>
-                            <td>${row.rain_value}</td>
-                            <td>${row.ldr_value}</td>
-                            <td>${row.status_jemuran}</td>
-                            <td>${row.status_system}</td>
-                        `;
+                        tr.innerHTML = `<td>${row.waktu}</td><td>${row.temperature}</td><td>${row.humidity}</td><td>${row.rain_value}</td><td>${row.ldr_value}</td><td>${row.status_jemuran}</td><td>${row.status_system}</td>`;
                         sensorDataTableBody.appendChild(tr);
                     });
-                    
-                    createOrUpdateLineChart(globalHistoryData, chartDataTypeSelect.value);
-                } else {
-                    sensorDataTableBody.innerHTML = '<tr><td colspan="8">Tidak ada data riwayat sensor yang tersedia atau sistem nonaktif.</td></tr>';
-                    globalHistoryData = [];
-                    if (lineChartInstance) {
-                        lineChartInstance.destroy();
-                    }
+                    createOrUpdateLineChart(data.history, chartDataTypeSelect.value);
                 }
             })
             .catch(error => {
-                console.error('Error fetching data:', error);
+                connectionDot.style.backgroundColor = '#ef4444';
+                connectionText.textContent = 'Offline';
             });
     }
 
-    if (toggleSystemBtn) {
-        toggleSystemBtn.addEventListener('click', function() {
-            const currentStatus = systemStatusSpan.textContent.trim();
-            const newStatus = (currentStatus === 'ON' ? 'OFF' : 'ON');
+    // LISTENER TOMBOL
+    btnAuto.addEventListener('click', () => {
+        console.log("Clicked AUTO");
+        fetch('/set_mode', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ mode: 'AUTO' }) })
+        .then(() => updateData());
+    });
 
-            fetch('/toggle_system', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ status_system: newStatus })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => { throw new Error(err.error || 'Failed to toggle system'); });
-                }
-                return response.json();
-            })
-            .then(data => {
-                updateData(); 
-            })
-            .catch(error => {
-                console.error('Error toggling system:', error);
-                alert('Gagal mengubah status sistem: ' + error.message);
-            });
-        });
+    btnManual.addEventListener('click', () => {
+        console.log("Clicked MANUAL");
+        fetch('/set_mode', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ mode: 'MANUAL' }) })
+        .then(() => updateData());
+    });
 
-        chartDataTypeSelect.addEventListener('change', () => {
-            if (globalHistoryData.length > 0) {
-                createOrUpdateLineChart(globalHistoryData, chartDataTypeSelect.value);
-            } else {
-                if (lineChartInstance) {
-                    lineChartInstance.destroy();
-                }
-            }
-        });
+    btnOff.addEventListener('click', () => {
+        console.log("Clicked MATIKAN");
+        // Kita kirim mode OFF ke endpoint baru atau endpoint set_mode
+        fetch('/set_mode', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ mode: 'OFF' }) })
+        .then(() => updateData());
+    });
 
-        updateData();
-        setInterval(updateData, 5000);
-    }
+    btnOpen.addEventListener('click', () => {
+        fetch('/manual_control', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ command: 'OPEN' }) });
+    });
+
+    btnClose.addEventListener('click', () => {
+        fetch('/manual_control', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ command: 'CLOSE' }) });
+    });
+
+    chartDataTypeSelect.addEventListener('change', updateData);
+    setInterval(updateData, 2000);
+    updateData();
 });

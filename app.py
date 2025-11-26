@@ -14,10 +14,7 @@ DB_PASS = os.getenv("DB_PASS", "")
 DB_NAME = os.getenv("DB_NAME", "smart_clothesline_db")
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
-app.secret_key = os.getenv("SECRET_KEY", "ganti-dengan-kunci-rahasia-yang-unik-dan-kuat")
-
-system_on = False
-rain_status_from_hp = "NO_RAIN"
+app.secret_key = os.getenv("SECRET_KEY", "secret_key_secure")
 
 def get_connection():
     try:
@@ -26,7 +23,7 @@ def get_connection():
         )
         return conn
     except Error as e:
-        print(f"Database connection error: {e}")
+        print(f"Database error: {e}")
         return None
 
 def login_required(f):
@@ -38,6 +35,16 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def ensure_control_exists(user_id):
+    conn = get_connection()
+    if conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM control WHERE user_id = %s", (user_id,))
+        if not cur.fetchone():
+            cur.execute("INSERT INTO control (user_id, current_control_mode, current_manual_command) VALUES (%s, 'AUTO', 'IDLE')", (user_id,))
+            conn.commit()
+        conn.close()
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if 'user_id' in session:
@@ -47,7 +54,7 @@ def index():
         password = request.form['password']
         conn = get_connection()
         if not conn:
-            flash("Tidak dapat terhubung ke database. Silakan coba lagi nanti.", "error")
+            flash("Database error", "error")
             return redirect(url_for('index'))
         try:
             cur = conn.cursor(dictionary=True)
@@ -56,17 +63,13 @@ def index():
             if user and user['password'] == password:
                 session['user_id'] = user['id']
                 session['username'] = user['username']
+                ensure_control_exists(user['id'])
                 flash("Login berhasil!", "success")
                 return redirect(url_for('home'))
             else:
                 flash("Username atau password salah", "error")
-        except Error as e:
-            flash(f"Terjadi kesalahan pada database: {e}", "error")
         finally:
-            if 'cur' in locals() and cur:
-                cur.close()
-            if conn:
-                conn.close()
+            if conn: conn.close()
         return render_template('index.html')
     return render_template('index.html')
 
@@ -75,30 +78,45 @@ def index():
 def home():
     rows = []
     current_status = {}
+    control_state = {}
+    
     conn = get_connection()
-    if not conn:
-        flash("Gagal terhubung ke database untuk memuat data.", "error")
-    else:
+    if conn:
         try:
             cur = conn.cursor(dictionary=True)
-            cur.execute("SELECT id, waktu, temperature, humidity, rain_value, ldr_value, status_jemuran, status_system FROM jemuran_data ORDER BY waktu DESC LIMIT 100")
+            user_id = session['user_id']
+            
+            cur.execute("SELECT current_control_mode, current_manual_command FROM control WHERE user_id = %s", (user_id,))
+            control_state = cur.fetchone() or {'current_control_mode': 'AUTO'}
+
+            cur.execute("SELECT waktu as waktu, temperature, humidity, rain_value, ldr_value, status_jemuran, status_system FROM jemuran_data WHERE user_id = %s ORDER BY waktu DESC LIMIT 50", (user_id,))
             rows = cur.fetchall()
-            cur.execute("SELECT temperature, humidity, rain_value, ldr_value, status_jemuran, status_system FROM jemuran_data ORDER BY waktu DESC LIMIT 1")
+            
+            cur.execute("SELECT temperature, humidity, rain_value, ldr_value, status_jemuran, status_system FROM jemuran_data WHERE user_id = %s ORDER BY waktu DESC LIMIT 1", (user_id,))
             current_status = cur.fetchone() or {}
-        except Error as e:
-            flash(f"Gagal memuat data: {e}", "error")
         finally:
-            if 'cur' in locals() and cur:
-                cur.close()
-            if conn:
-                conn.close()
+            conn.close()
     
-    global system_on
-    
+    # Init render variables
+    db_mode = control_state.get('current_control_mode', 'AUTO')
+    control_mode = 'AUTO'
+    system_on = False
+
+    if db_mode == 'MANUAL':
+        control_mode = 'MANUAL'
+        system_on = True 
+    elif db_mode == 'OFF':
+        control_mode = 'AUTO' # Di HTML tetap render mode, tapi system_on False
+        system_on = False
+    else: # AUTO
+        control_mode = 'AUTO'
+        system_on = True
+
     return render_template(
         "home.html",
         table_rows=rows,
         system_on=system_on,
+        control_mode=control_mode,
         username=session['username'],
         current_status=current_status,
         datetime=datetime
@@ -110,130 +128,170 @@ def logout():
     flash("Anda telah berhasil logout", "success")
     return redirect(url_for('index'))
 
-@app.route("/system_status")
-def get_system_status():
-    global system_on
-    return jsonify({"status": "ON" if system_on else "OFF"})
-
-@app.route("/toggle_system", methods=["POST"])
+@app.route("/set_mode", methods=["POST"])
 @login_required
-def toggle_system():
-    global system_on
-    conn = get_connection()
-    if not conn:
-        return jsonify({"error": "Koneksi database gagal"}), 500
+def set_mode():
     try:
         payload = request.get_json()
-        new_status_str = payload.get("status_system")
-
-        if new_status_str not in ["ON", "OFF"]:
-            return jsonify({"error": "Status tidak valid"}), 400
+        new_mode = payload.get("mode") # AUTO, MANUAL, OFF
+        user_id = session['user_id']
         
-        system_on = (new_status_str == "ON")
-
-        cur = conn.cursor()
-
-        cur.execute("SELECT MAX(id) FROM jemuran_data")
-        max_id_result = cur.fetchone()
-        max_id = max_id_result[0] if max_id_result and max_id_result[0] else None
-
-        if max_id is not None:
-            sql = "UPDATE jemuran_data SET status_system = %s WHERE id = %s"
-            cur.execute(sql, (new_status_str, max_id))
-            conn.commit()
+        valid_modes = ["AUTO", "MANUAL", "OFF"]
         
-        cur.close()
-        return jsonify({"message": f"Sistem diubah ke {new_status_str}", "new_system_status": new_status_str})
-    except Error as e:
-        return jsonify({"error": f"Kesalahan database saat mengubah status sistem: {e}"}), 500
+        if new_mode in valid_modes:
+            conn = get_connection()
+            if conn:
+                cur = conn.cursor()
+                
+                if new_mode == "OFF":
+                    # Logic: Set Mode=AUTO but status=OFF (di tabel users) atau pakai flag khusus
+                    # Disini saya simpan "OFF" ke current_control_mode agar konsisten
+                    cur.execute("UPDATE control SET current_control_mode = 'OFF' WHERE user_id = %s", (user_id,))
+                else:
+                    cur.execute("UPDATE control SET current_control_mode = %s WHERE user_id = %s", (new_mode, user_id))
+                
+                conn.commit()
+                conn.close()
+                return jsonify({"message": "Mode updated", "mode": new_mode})
+        return jsonify({"error": "Invalid mode"}), 400
     except Exception as e:
-        return jsonify({"error": f"Kesalahan server saat mengubah status sistem: {e}"}), 500
-    finally:
-        if conn:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/manual_control", methods=["POST"])
+@login_required
+def manual_control():
+    try:
+        payload = request.get_json()
+        command = payload.get("command")
+        user_id = session['user_id']
+
+        if command in ["OPEN", "CLOSE"]:
+            conn = get_connection()
+            if conn:
+                cur = conn.cursor()
+                cur.execute("UPDATE control SET current_manual_command = %s WHERE user_id = %s", (command, user_id))
+                conn.commit()
+                conn.close()
+                return jsonify({"message": "Command sent", "command": command})
+        return jsonify({"error": "Invalid command"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/system_status")
+def get_system_status():
+    target_user = request.args.get('username')
+    conn = get_connection()
+    status_data = {"status": "OFF", "mode": "AUTO", "manual_cmd": "IDLE"}
+    
+    if conn and target_user:
+        try:
+            cur = conn.cursor(dictionary=True)
+            cur.execute("SELECT id FROM users WHERE username = %s", (target_user,))
+            user = cur.fetchone()
+            
+            if user:
+                cur.execute("SELECT current_control_mode, current_manual_command FROM control WHERE user_id = %s", (user['id'],))
+                ctrl = cur.fetchone()
+                
+                if ctrl:
+                    db_mode = ctrl['current_control_mode']
+                    
+                    if db_mode == 'OFF':
+                        status_data["status"] = "OFF"
+                        status_data["mode"] = "AUTO" # Arduino logic: if auto & off = idle
+                    elif db_mode == 'MANUAL':
+                        status_data["status"] = "ON" # Manual but active control
+                        status_data["mode"] = "MANUAL"
+                    else: # AUTO
+                        status_data["status"] = "ON"
+                        status_data["mode"] = "AUTO"
+                        
+                    status_data["manual_cmd"] = ctrl['current_manual_command']
+        finally:
             conn.close()
+
+    return jsonify(status_data)
 
 @app.route("/data")
 @login_required
 def get_data():
     conn = get_connection()
-    if not conn:
-        return jsonify({"error": "Koneksi database gagal"}), 500
+    if not conn: return jsonify({"error": "DB Connection Failed"}), 500
     try:
         cur = conn.cursor(dictionary=True)
-        cur.execute("SELECT id, waktu, temperature, humidity, rain_value, ldr_value, status_jemuran, status_system FROM jemuran_data ORDER BY waktu DESC LIMIT 1")
-        latest_data = cur.fetchone()
-
-        cur.execute("SELECT id, waktu, temperature, humidity, rain_value, ldr_value, status_jemuran, status_system FROM jemuran_data ORDER BY waktu DESC LIMIT 100")
-        history_data = cur.fetchall()
-
-        cur.close()
+        user_id = session['user_id']
+        
+        cur.execute("SELECT current_control_mode FROM control WHERE user_id = %s", (user_id,))
+        control_state = cur.fetchone() or {'current_control_mode': 'AUTO'}
+        
+        cur.execute("SELECT waktu as waktu, temperature, humidity, rain_value, ldr_value, status_jemuran, status_system FROM jemuran_data WHERE user_id = %s ORDER BY waktu DESC LIMIT 1", (user_id,))
+        latest = cur.fetchone()
+        
+        cur.execute("SELECT waktu as waktu, temperature, humidity, rain_value, ldr_value, status_jemuran, status_system FROM jemuran_data WHERE user_id = %s ORDER BY waktu DESC LIMIT 50", (user_id,))
+        history = cur.fetchall()
         conn.close()
         
-        global system_on
+        db_mode = control_state['current_control_mode']
+        
+        ui_system_on = True
+        ui_mode = "AUTO"
+
+        if db_mode == 'OFF':
+            ui_system_on = False
+            ui_mode = "AUTO" # Supaya JS logic render OFF
+        elif db_mode == 'MANUAL':
+            ui_system_on = True
+            ui_mode = "MANUAL"
+        else:
+            ui_system_on = True
+            ui_mode = "AUTO"
+
         return jsonify({
-            "latest": latest_data,
-            "history": history_data,
-            "flask_system_status": "ON" if system_on else "OFF"
+            "latest": latest,
+            "history": history,
+            "flask_system_status": "OFF" if db_mode == 'OFF' else "ON",
+            "control_mode": 'AUTO' if db_mode == 'OFF' else db_mode
         })
     except Error as e:
-        return jsonify({"error": f"Kesalahan query database: {e}"}), 500
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/insert", methods=["POST"])
 def insert_data():
     try:
         payload = request.get_json(force=True)
-        temperature = payload.get("temperature")
-        humidity = payload.get("humidity")
-        rain_value = payload.get("rain_value")
-        ldr_value = payload.get("ldr_value")
-        status_jemuran = payload.get("status_jemuran")
-        system_status_from_arduino = payload.get("status_system")
-
-        if any(v is None for v in [temperature, humidity, rain_value, ldr_value, status_jemuran, system_status_from_arduino]):
-            return jsonify({"error": "Parameter tidak lengkap"}), 400
+        username = payload.get("username")
         
+        if not username: return jsonify({"error": "Username required"}), 400
+
         conn = get_connection()
-        if not conn:
-            return jsonify({"error": "Koneksi database gagal saat memasukkan data"}), 500
-        
-        cur = conn.cursor()
-        sql = """
-            INSERT INTO jemuran_data (waktu, temperature, humidity, rain_value, ldr_value, status_jemuran, status_system)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """
-        cur.execute(sql, (
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            float(temperature),
-            float(humidity),
-            int(rain_value),
-            int(ldr_value),
-            status_jemuran,
-            system_status_from_arduino
-        ))
-        conn.commit()
-        cur.close()
-        conn.close()
-        return jsonify({"message": "Data berhasil dimasukkan"})
-    except mysql.connector.Error as e:
-        return jsonify({"error": f"Kesalahan MySQL: {e}"}), 500
-    except Exception as ex:
-        return jsonify({"error": f"Kesalahan server: {ex}"}), 500
-
-@app.route("/rain_status", methods=["GET", "POST"])
-def rain_status():
-    global rain_status_from_hp
-    if request.method == "POST":
-        try:
-            payload = request.get_json(force=True)
-            status = payload.get("status")
-            if status not in ["RAIN", "NO_RAIN"]:
-                return jsonify({"error": "Status tidak valid"}), 400
-            rain_status_from_hp = status
-            return jsonify({"message": f"Status hujan diterima: {status}"})
-        except Exception as e:
-            return jsonify({"error": f"Kesalahan server: {e}"}), 500
-    else:
-        return jsonify({"status": rain_status_from_hp})
+        if conn:
+            cur = conn.cursor()
+            cur.execute("SELECT id FROM users WHERE username = %s", (username,))
+            user_res = cur.fetchone()
+            
+            if user_res:
+                user_id = user_res[0]
+                sql = """INSERT INTO jemuran_data 
+                         (user_id, temperature, humidity, rain_value, ldr_value, status_jemuran, status_system) 
+                         VALUES (%s, %s, %s, %s, %s, %s, %s)"""
+                cur.execute(sql, (
+                    user_id,
+                    float(payload.get("temperature")), 
+                    float(payload.get("humidity")), 
+                    int(payload.get("rain_value")), 
+                    int(payload.get("ldr_value")), 
+                    payload.get("status_jemuran"), 
+                    payload.get("status_system")
+                ))
+                conn.commit()
+                conn.close()
+                return jsonify({"message": "Data saved"})
+            else:
+                conn.close()
+                return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "DB Error"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

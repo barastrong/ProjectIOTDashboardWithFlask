@@ -3,29 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Smart Clothesline IoT</title>
+    <title>Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="{{ url_for('static', filename='js/script.js') }}" defer></script>
 </head>
 <body>
-    <!-- Hamburger Menu untuk Mobile -->
     <button class="hamburger"><i class="fas fa-bars"></i></button>
 
-    <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-header">
-            <h1>Smart Clothesline IoT</h1>
+            <h1>Smart Clothesline</h1>
             <div class="user-info">
                 <i class="fas fa-user-circle"></i>
-                <span>Halo, {{ username }}!</span>
+                <span>Hi, {{ username }}</span>
             </div>
         </div>
 
         <nav class="sidebar-nav">
-            <h3>Menu</h3>
+            <h3>Navigasi</h3>
             <a href="#" class="nav-item active">
                 <i class="fas fa-chart-line"></i> Dashboard
             </a>
@@ -33,34 +30,17 @@
 
         <div class="sidebar-info">
             <div class="info-section">
-                <h4><i class="fas fa-cogs"></i> Cara Kerja Sistem</h4>
-                <ul>
-                    <li>Sistem otomatis memantau cuaca</li>
-                    <li>Sensor hujan mendeteksi air</li>
-                    <li>Sensor LDR mengukur cahaya</li>
-                    <li>Motor menggerakkan jemuran</li>
-                    <li>Data tersimpan real-time</li>
-                </ul>
+                <h4><i class="fas fa-robot"></i> Status Sistem</h4>
+                <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                    <span id="sidebar-status-text" style="font-weight: bold; color: white;">Memuat...</span>
+                </div>
             </div>
-
             <div class="info-section">
-                <h4><i class="fas fa-microchip"></i> Sensor yang Digunakan</h4>
-                <ul>
-                    <li>DHT22 - Suhu & Kelembaban</li>
-                    <li>Rain Sensor - Deteksi Hujan</li>
-                    <li>LDR - Kecerahan Cahaya</li>
-                    <li>Servo Motor - Penggerak</li>
-                </ul>
-            </div>
-
-            <div class="info-section">
-                <h4><i class="fas fa-info-circle"></i> Informasi Penting</h4>
-                <ul>
-                    <li>Update data setiap 5 detik</li>
-                    <li>Otomatis tutup saat hujan</li>
-                    <li>Buka otomatis saat cerah</li>
-                    <li>Dapat kontrol manual</li>
-                </ul>
+                <h4><i class="fas fa-wifi"></i> Koneksi</h4>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div id="connection-dot" style="width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%;"></div>
+                    <span id="connection-text">Connecting...</span>
+                </div>
             </div>
         </div>
 
@@ -69,7 +49,6 @@
         </a>
     </aside>
 
-    <!-- Main Content -->
     <div class="main-wrapper">
         <header>
             <div class="container">
@@ -78,69 +57,64 @@
         </header>
         
         <main class="container">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    <ul class="flash-messages">
-                        {% for category, message in messages %}
-                            <li class="{{ category }}">{{ message }}</li>
-                        {% endfor %}
-                    </ul>
-                {% endif %}
-            {% endwith %}
-
             <section class="controls-section">
-                <div class="card">
-                    <h2><i class="fas fa-power-off"></i> Kontrol Sistem</h2>
-                    <p>Status Sistem: <span id="system-status" class="status-indicator {{ 'on' if system_on else 'off' }}">{{ 'ON' if system_on else 'OFF' }}</span></p>
-                    <button id="toggle-system-btn" class="btn-toggle {{ 'btn-off' if system_on else 'btn-on' }}">
-                        {{ 'MATIKAN SISTEM' if system_on else 'NYALAKAN SISTEM' }}
-                    </button>
-                </div>
                 
+                <div class="card">
+                    <h2><i class="fas fa-gamepad"></i> Kontrol Utama</h2>
+                    
+                    <div class="mode-switcher">
+                        <button id="btn-auto" class="btn-mode">AUTO</button>
+                        <button id="btn-manual" class="btn-mode">MANUAL</button>
+                        <button id="btn-off" class="btn-mode btn-off-style" style="color: #ef4444; border: 1px solid #ef4444;">MATIKAN</button>
+                    </div>
+                    
+                    <div id="manual-controls" class="manual-actions" style="display: none;">
+                        <button id="btn-open" class="btn-action open"><i class="fas fa-sun"></i> BUKA (JEMUR)</button>
+                        <button id="btn-close" class="btn-action close"><i class="fas fa-umbrella"></i> TUTUP (MASUK)</button>
+                    </div>
+
+                    <p id="status-message" style="margin-top: 15px; font-size: 0.9em; color: #666; text-align: center;">...</p>
+                </div>
+
                 <div class="card current-data">
-                    <h2><i class="fas fa-thermometer-half"></i> Data Sensor Terkini</h2>
-                    <p><strong><i class="far fa-clock"></i> Waktu:</strong> <span id="current-waktu">{{ current_status.waktu if current_status else 'N/A' }}</span></p>
-                    <p><strong><i class="fas fa-temperature-high"></i> Suhu:</strong> <span id="current-temperature">{{ current_status.temperature if current_status else 'N/A' }}</span> °C</p>
-                    <p><strong><i class="fas fa-tint"></i> Kelembaban:</strong> <span id="current-humidity">{{ current_status.humidity if current_status else 'N/A' }}</span> %</p>
-                    <p><strong><i class="fas fa-cloud-rain"></i> Kondisi:</strong> <span id="current-rain">{{ current_status.rain_value if current_status else 'N/A' }}</span></p>
-                    <p><strong><i class="fas fa-sun"></i> Kecerahan Cahaya:</strong> <span id="current-ldr">{{ current_status.ldr_value if current_status else 'N/A' }}</span></p>
-                    <p><strong><i class="fas fa-tshirt"></i> Status Jemuran:</strong> <span id="current-jemuran-status">{{ current_status.status_jemuran if current_status else 'N/A' }}</span></p>
+                    <h2><i class="fas fa-thermometer-half"></i> Data Sensor</h2>
+                    <p><strong>Waktu:</strong> <span id="current-waktu">{{ current_status.waktu }}</span></p>
+                    <p><strong>Suhu:</strong> <span id="current-temperature">{{ current_status.temperature }}</span> °C</p>
+                    <p><strong>Kelembaban:</strong> <span id="current-humidity">{{ current_status.humidity }}</span> %</p>
+                    <p><strong>Hujan:</strong> <span id="current-rain">{{ current_status.rain_value }}</span></p>
+                    <p><strong>Cahaya:</strong> <span id="current-ldr">{{ current_status.ldr_value }}</span></p>
+                    <p><strong>Status Jemuran:</strong> <span id="current-jemuran-status">{{ current_status.status_jemuran }}</span></p>
                 </div>
             </section>
 
             <section class="charts-section">
                 <div class="card chart-container">
                     <div class="chart-header">
-                        <h2><i class="fas fa-chart-area"></i> Riwayat Data Sensor</h2>
-                        <select id="chartDataType">
-                            <option value="temperature">Suhu (°C)</option>
-                            <option value="humidity">Kelembaban (%)</option>
-                        </select>
+                        <h2>Grafik</h2>
+                        <select id="chartDataType"><option value="temperature">Suhu</option><option value="humidity">Kelembaban</option></select>
                     </div>
                     <canvas id="lineChart"></canvas>
                 </div>
             </section>
 
             <section class="data-table-section">
-                <h2><i class="fas fa-table"></i> Riwayat Data Sensor</h2>
+                <h2>Riwayat Data</h2>
                 <div class="table-responsive">
                     <table id="sensor-data-table">
                         <thead>
                             <tr>
-                                <th>ID</th>
                                 <th>Waktu</th>
-                                <th>Suhu (°C)</th>
-                                <th>Kelembaban (%)</th>
-                                <th>Intensitas Hujan</th>
-                                <th>Kecerahan Cahaya</th>
+                                <th>Suhu</th>
+                                <th>Kelembaban</th>
+                                <th>Hujan</th>
+                                <th>Cahaya</th>
                                 <th>Status Jemuran</th>
-                                <th>Status Sistem</th>
+                                <th>Sistem</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for row in table_rows %}
                             <tr>
-                                <td>{{ row.id }}</td>
                                 <td>{{ row.waktu }}</td>
                                 <td>{{ row.temperature }}</td>
                                 <td>{{ row.humidity }}</td>
@@ -155,12 +129,7 @@
                 </div>
             </section>
         </main>
-        
-        <footer>
-            <div class="container">
-                <p>&copy; {{ datetime.now().year }} Smart Clothesline IoT</p>
-            </div>
-        </footer>
     </div>
 </body>
+
 </html>
