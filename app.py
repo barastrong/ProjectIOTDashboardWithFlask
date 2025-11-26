@@ -17,6 +17,7 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.getenv("SECRET_KEY", "ganti-dengan-kunci-rahasia-yang-unik-dan-kuat")
 
 system_on = False
+rain_status_from_hp = "NO_RAIN"
 
 def get_connection():
     try:
@@ -93,8 +94,6 @@ def home():
                 conn.close()
     
     global system_on
-    if current_status and 'status_system' in current_status:
-        system_on = (current_status['status_system'] == 'ON')
     
     return render_template(
         "home.html",
@@ -112,7 +111,6 @@ def logout():
     return redirect(url_for('index'))
 
 @app.route("/system_status")
-# @login_required # Hapus dekorator ini!
 def get_system_status():
     global system_on
     return jsonify({"status": "ON" if system_on else "OFF"})
@@ -131,9 +129,7 @@ def toggle_system():
         if new_status_str not in ["ON", "OFF"]:
             return jsonify({"error": "Status tidak valid"}), 400
         
-        system_on_new_value = (new_status_str == "ON")
-        
-        system_on = system_on_new_value
+        system_on = (new_status_str == "ON")
 
         cur = conn.cursor()
 
@@ -145,11 +141,8 @@ def toggle_system():
             sql = "UPDATE jemuran_data SET status_system = %s WHERE id = %s"
             cur.execute(sql, (new_status_str, max_id))
             conn.commit()
-        else:
-            print("Tidak ada data dalam tabel jemuran_data untuk diperbarui dengan status sistem baru.")
         
         cur.close()
-        
         return jsonify({"message": f"Sistem diubah ke {new_status_str}", "new_system_status": new_status_str})
     except Error as e:
         return jsonify({"error": f"Kesalahan database saat mengubah status sistem: {e}"}), 500
@@ -186,7 +179,6 @@ def get_data():
         return jsonify({"error": f"Kesalahan query database: {e}"}), 500
 
 @app.route("/insert", methods=["POST"])
-# @login_required # endpoint ini juga tidak perlu dilindungi
 def insert_data():
     try:
         payload = request.get_json(force=True)
@@ -226,6 +218,22 @@ def insert_data():
         return jsonify({"error": f"Kesalahan MySQL: {e}"}), 500
     except Exception as ex:
         return jsonify({"error": f"Kesalahan server: {ex}"}), 500
+
+@app.route("/rain_status", methods=["GET", "POST"])
+def rain_status():
+    global rain_status_from_hp
+    if request.method == "POST":
+        try:
+            payload = request.get_json(force=True)
+            status = payload.get("status")
+            if status not in ["RAIN", "NO_RAIN"]:
+                return jsonify({"error": "Status tidak valid"}), 400
+            rain_status_from_hp = status
+            return jsonify({"message": f"Status hujan diterima: {status}"})
+        except Exception as e:
+            return jsonify({"error": f"Kesalahan server: {e}"}), 500
+    else:
+        return jsonify({"status": rain_status_from_hp})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
