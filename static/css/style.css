@@ -13,11 +13,12 @@ body {
     min-height: 100vh;
 }
 
+/* ========== SIDEBAR STYLES ========== */
 .sidebar {
-    width: 280px;
+    width: 300px;
     background-color: #1e3a8a;
     color: white;
-    padding: 30px 20px;
+    padding: 25px 18px;
     position: fixed;
     height: 100vh;
     overflow-y: auto;
@@ -26,21 +27,34 @@ body {
     transition: transform 0.3s ease;
 }
 
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
 .sidebar-header {
-    margin-bottom: 30px;
-    padding-bottom: 20px;
+    margin-bottom: 25px;
+    padding-bottom: 18px;
     border-bottom: 2px solid rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-header h1 {
-    font-size: 1.4em;
+    font-size: 1.35em;
     font-weight: 600;
     margin-bottom: 8px;
     line-height: 1.3;
 }
 
 .sidebar-header .user-info {
-    font-size: 0.9em;
+    font-size: 0.88em;
     opacity: 0.9;
     margin-top: 12px;
     padding: 10px;
@@ -52,27 +66,27 @@ body {
 }
 
 .sidebar-nav {
-    margin-bottom: 30px;
+    margin-bottom: 25px;
 }
 
 .sidebar-nav h3 {
-    font-size: 0.85em;
+    font-size: 0.8em;
     text-transform: uppercase;
     letter-spacing: 1px;
-    margin-bottom: 15px;
+    margin-bottom: 12px;
     opacity: 0.7;
     font-weight: 600;
 }
 
 .nav-item {
     display: flex;
-    padding: 12px 15px;
+    padding: 11px 14px;
     margin-bottom: 8px;
     color: white;
     text-decoration: none;
     border-radius: 8px;
     transition: all 0.3s ease;
-    font-size: 0.95em;
+    font-size: 0.92em;
     align-items: center;
     gap: 10px;
 }
@@ -88,33 +102,106 @@ body {
 }
 
 .sidebar-info {
-    margin-top: 30px;
+    margin-top: 25px;
 }
 
 .info-section {
     background-color: rgba(255, 255, 255, 0.1);
-    padding: 18px;
+    padding: 16px;
     border-radius: 10px;
-    margin-bottom: 20px;
+    margin-bottom: 18px;
 }
 
 .info-section h4 {
-    font-size: 1em;
+    font-size: 0.95em;
     margin-bottom: 12px;
     font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+}
+
+/* ========== PENJELASAN MODE SECTION ========== */
+.info-explanation .explanation-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.explanation-item {
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    border-left: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.explanation-item strong {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.88em;
+    margin-bottom: 5px;
+}
+
+/* Mode AUTO - Strong Hijau */
+.explanation-item.mode-auto strong {
+    color: #10b981;
+}
+
+/* Mode MANUAL - Strong Kuning */
+.explanation-item.mode-manual strong {
+    color: #fbbf24;
+}
+
+/* Mode OFF - Strong Merah */
+.explanation-item.mode-off strong {
+    color: #ef4444;
+}
+
+.explanation-item p {
+    font-size: 0.8em;
+    line-height: 1.5;
+    opacity: 0.9;
+    margin: 0;
+}
+
+/* ========== INFO SENSOR SECTION ========== */
+.sensor-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sensor-list li {
+    font-size: 0.82em;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.sensor-list li:last-child {
+    border-bottom: none;
+}
+
+.sensor-list li i {
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.sensor-list li strong {
+    color: #fbbf24;
 }
 
 .btn-logout-sidebar {
     width: 100%;
     background-color: #dc2626;
     color: white;
-    padding: 12px 20px;
+    padding: 12px 18px;
     border-radius: 8px;
     text-decoration: none;
-    font-size: 0.9em;
+    font-size: 0.88em;
     font-weight: 600;
     transition: all 0.3s ease;
     border: none;
@@ -132,6 +219,7 @@ body {
     box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
 }
 
+/* ========== HAMBURGER MENU ========== */
 .hamburger {
     display: none;
     position: fixed;
@@ -148,9 +236,10 @@ body {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
+/* ========== MAIN CONTENT ========== */
 .main-wrapper {
     flex: 1;
-    margin-left: 280px;
+    margin-left: 300px;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
@@ -189,6 +278,7 @@ main {
     flex: 1;
 }
 
+/* ========== CONTROL CARDS ========== */
 .controls-section {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -244,6 +334,7 @@ main {
 .btn-toggle.btn-off { background-color: #ef4444; }
 .btn-toggle:hover { opacity: 0.9; transform: translateY(-2px); }
 
+/* ========== MODE SWITCHER ========== */
 .mode-switcher {
     display: flex;
     gap: 10px;
@@ -314,6 +405,7 @@ main {
     border-left: 3px solid #3b82f6;
 }
 
+/* ========== CHARTS ========== */
 .charts-section {
     margin-bottom: 30px;
 }
@@ -351,6 +443,7 @@ main {
     max-height: 380px; 
 }
 
+/* ========== DATA TABLE ========== */
 .data-table-section {
     margin-bottom: 40px;
 }
@@ -399,11 +492,11 @@ main {
 
 /* ========== RESPONSIVE BREAKPOINTS ========== */
 
-/* Tablet devices (1024px and below) */
+/* Tablet (1024px and below) */
 @media (max-width: 1024px) {
     .sidebar { 
         transform: translateX(-100%); 
-        width: 280px;
+        width: 300px;
     }
     
     .sidebar.active { 
@@ -440,7 +533,7 @@ main {
     }
 }
 
-/* Mobile devices (768px and below) */
+/* Mobile (768px and below) */
 @media (max-width: 768px) {
     .container {
         width: 100%;
@@ -524,7 +617,8 @@ main {
     }
     
     .sidebar {
-        width: 260px;
+        width: 280px;
+        padding: 20px 15px;
     }
     
     .sidebar-header h1 {
@@ -532,11 +626,33 @@ main {
     }
     
     .info-section {
-        padding: 15px;
+        padding: 14px;
+        margin-bottom: 15px;
+    }
+    
+    .info-section h4 {
+        font-size: 0.9em;
+    }
+    
+    .explanation-item {
+        padding: 8px;
+    }
+    
+    .explanation-item strong {
+        font-size: 0.82em;
+    }
+    
+    .explanation-item p {
+        font-size: 0.76em;
+    }
+    
+    .sensor-list li {
+        font-size: 0.78em;
+        padding: 6px 0;
     }
 }
 
-/* Small mobile devices (480px and below) */
+/* Small Mobile (480px and below) */
 @media (max-width: 480px) {
     .hamburger {
         top: 15px;
@@ -565,23 +681,25 @@ main {
     }
     
     .mode-switcher {
-        gap: 8px;
+        gap: 6px;
         padding: 4px;
+        flex-wrap: wrap;
     }
     
     .btn-mode {
-        padding: 8px;
-        font-size: 0.9em;
+        padding: 8px 6px;
+        font-size: 0.85em;
+        min-width: 80px;
     }
     
     .btn-action {
         padding: 10px;
-        font-size: 0.9em;
-        gap: 8px;
+        font-size: 0.88em;
+        gap: 6px;
     }
     
     .current-data p {
-        font-size: 0.9em;
+        font-size: 0.88em;
         padding: 8px;
         margin: 10px 0;
     }
@@ -613,13 +731,13 @@ main {
     }
     
     .sidebar {
-        width: 240px;
-        padding: 20px 15px;
+        width: 260px;
+        padding: 18px 12px;
     }
     
     .sidebar-header {
-        margin-bottom: 20px;
-        padding-bottom: 15px;
+        margin-bottom: 18px;
+        padding-bottom: 12px;
     }
     
     .sidebar-header h1 {
@@ -627,31 +745,62 @@ main {
     }
     
     .sidebar-header .user-info {
-        font-size: 0.85em;
+        font-size: 0.82em;
         padding: 8px;
+    }
+    
+    .sidebar-nav h3 {
+        font-size: 0.75em;
+        margin-bottom: 10px;
+    }
+    
+    .nav-item {
+        padding: 9px 12px;
+        font-size: 0.86em;
     }
     
     .info-section {
         padding: 12px;
-        margin-bottom: 15px;
+        margin-bottom: 12px;
     }
     
     .info-section h4 {
-        font-size: 0.9em;
+        font-size: 0.85em;
         margin-bottom: 10px;
     }
     
-    .info-section ul {
-        font-size: 0.8em !important;
+    .explanation-content {
+        gap: 10px;
+    }
+    
+    .explanation-item {
+        padding: 8px;
+    }
+    
+    .explanation-item strong {
+        font-size: 0.78em;
+        gap: 5px;
+    }
+    
+    .explanation-item p {
+        font-size: 0.72em;
+        line-height: 1.4;
+    }
+    
+    .sensor-list li {
+        font-size: 0.74em;
+        padding: 5px 0;
+        gap: 6px;
     }
     
     .btn-logout-sidebar {
-        padding: 10px 16px;
-        font-size: 0.85em;
+        padding: 10px 14px;
+        font-size: 0.82em;
+        margin-top: 15px;
     }
 }
 
-/* Extra small devices (360px and below) */
+/* Extra Small Mobile (360px and below) */
 @media (max-width: 360px) {
     .container {
         padding: 0 10px;
@@ -667,10 +816,37 @@ main {
     
     .card h2 {
         font-size: 1em;
+        gap: 6px;
     }
     
     .sidebar {
-        width: 220px;
+        width: 240px;
+        padding: 15px 10px;
+    }
+    
+    .sidebar-header h1 {
+        font-size: 1em;
+    }
+    
+    .info-section {
+        padding: 10px;
+    }
+    
+    .explanation-item strong {
+        font-size: 0.74em;
+    }
+    
+    .explanation-item p {
+        font-size: 0.68em;
+    }
+    
+    .sensor-list li {
+        font-size: 0.7em;
+    }
+    
+    .btn-mode {
+        font-size: 0.78em;
+        padding: 7px 5px;
     }
     
     #sensor-data-table {
@@ -682,4 +858,3 @@ main {
         padding: 6px;
     }
 }
-

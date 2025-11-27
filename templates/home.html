@@ -35,12 +35,41 @@
                     <span id="sidebar-status-text" style="font-weight: bold; color: white;">Memuat...</span>
                 </div>
             </div>
+            
             <div class="info-section">
                 <h4><i class="fas fa-wifi"></i> Koneksi</h4>
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <div id="connection-dot" style="width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%;"></div>
                     <span id="connection-text">Connecting...</span>
                 </div>
+            </div>
+
+            <div class="info-section info-explanation">
+                <h4><i class="fas fa-info-circle"></i> Penjelasan Mode</h4>
+                <div class="explanation-content">
+                    <div class="explanation-item mode-auto">
+                        <strong><i class="fas fa-brain"></i> Mode AUTO</strong>
+                        <p>Sistem bekerja otomatis berdasarkan sensor. Jemuran akan terbuka/tertutup secara otomatis sesuai kondisi cuaca.</p>
+                    </div>
+                    <div class="explanation-item mode-manual">
+                        <strong><i class="fas fa-hand-pointer"></i> Mode MANUAL</strong>
+                        <p>Anda dapat mengontrol jemuran secara manual menggunakan tombol buka/tutup. Sensor tetap aktif untuk monitoring.</p>
+                    </div>
+                    <div class="explanation-item mode-off">
+                        <strong><i class="fas fa-power-off"></i> Mode OFF</strong>
+                        <p>Sistem dimatikan sepenuhnya. Sensor dan motor tidak aktif. Gunakan mode ini untuk menghemat daya.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-section info-sensor">
+                <h4><i class="fas fa-lightbulb"></i> Info Sensor</h4>
+                <ul class="sensor-list">
+                    <li><i class="fas fa-temperature-high"></i> <strong>Suhu:</strong> Mengukur suhu udara dalam °C</li>
+                    <li><i class="fas fa-tint"></i> <strong>Kelembaban:</strong> Tingkat kelembaban udara (%)</li>
+                    <li><i class="fas fa-cloud-rain"></i> <strong>Hujan:</strong> Deteksi hujan (Hujan/Tidak Hujan)</li>
+                    <li><i class="fas fa-sun"></i> <strong>Cahaya:</strong> Intensitas cahaya (Terang/Gelap)</li>
+                </ul>
             </div>
         </div>
 
@@ -131,5 +160,4 @@
         </main>
     </div>
 </body>
-
 </html>
